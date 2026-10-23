@@ -3,9 +3,9 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
-    DateTime,
     Boolean,
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
