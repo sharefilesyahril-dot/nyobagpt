@@ -3,10 +3,10 @@
 import uuid
 from datetime import datetime
 
-from autopilot.audit.ledger import AuditEvent, append_audit
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from autopilot.governance.approvals import _canonical, _hash
 from autopilot.governance.controls import ControlDenied, check_controls
 from autopilot.governance.models import ActionRequest, Approval, ExecutionPermit
