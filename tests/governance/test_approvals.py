@@ -4,6 +4,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from autopilot.governance.approvals import request_action
+from autopilot.governance.controls import (
+    configure_global_budget,
+    configure_venture_budget,
+)
 from autopilot.governance.decisions import ApprovalDenied, decide_approval
 from autopilot.governance.gateway import (
     PermitDenied,
@@ -21,6 +25,8 @@ def setup_request(session, monkeypatch):
     monkeypatch.setenv("AUTOPILOT_BOOTSTRAP_SECRET", "test-secret")
     owner, _ = bootstrap_owner(session, "test-secret")
     venture = create_venture(session, owner, "Approval tests")
+    configure_global_budget(session, owner.id, 100000)
+    configure_venture_budget(session, owner.id, venture.id, 100000)
     request = request_action(
         session, owner, venture.id, "payment", "invoice",
         {"amount": 100}, str(uuid.uuid4()),
@@ -129,7 +135,13 @@ def test_concurrent_consumption_has_exactly_one_winner(
     from sqlalchemy import delete
     from sqlalchemy.orm import Session
 
-    from autopilot.governance.models import ActionRequest, Approval, ExecutionPermit
+    from autopilot.governance.models import (
+        ActionRequest,
+        Approval,
+        ExecutionPermit,
+        GlobalControl,
+        VentureControl,
+    )
     from autopilot.identity.models import Actor
     from autopilot.ventures.models import Venture
 
@@ -137,6 +149,8 @@ def test_concurrent_consumption_has_exactly_one_winner(
     with Session(database_engine) as setup:
         owner, _ = bootstrap_owner(setup, "permit-race-secret")
         venture = create_venture(setup, owner, "Permit race")
+        configure_global_budget(setup, owner.id, 100000)
+        configure_venture_budget(setup, owner.id, venture.id, 100000)
         request = request_action(
             setup, owner, venture.id, "payment", "invoice",
             {"amount": 100}, "permit-race-key",
@@ -177,6 +191,12 @@ def test_concurrent_consumption_has_exactly_one_winner(
             cleanup.execute(delete(Approval).where(Approval.request_id == request_id))
             cleanup.execute(delete(ActionRequest).where(
                 ActionRequest.id == request_id
+            ))
+            cleanup.execute(delete(VentureControl).where(
+                VentureControl.venture_id == venture_id
+            ))
+            cleanup.execute(delete(GlobalControl).where(
+                GlobalControl.organization_id == owner_id
             ))
             cleanup.execute(delete(Venture).where(Venture.id == venture_id))
             cleanup.execute(delete(Actor).where(Actor.id == owner_id))
