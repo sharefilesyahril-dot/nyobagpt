@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from autopilot.db import get_session
 from autopilot.governance.approvals import (
     InvalidAction,
@@ -54,6 +55,9 @@ def add_action_request(
             payload.target, payload.parameters, payload.idempotency_key,
         )
         result = ActionOutput.model_validate(record, from_attributes=True)
+        append_audit(session, AuditEvent(
+            event_type="action.requested", actor_id=str(actor.id),
+        ))
         session.commit()
         return result
     except NotFound as exc:
@@ -93,6 +97,9 @@ def decide_action_request(
             datetime.now(UTC), payload.expires_at,
         )
         result = DecisionOutput.model_validate(approval, from_attributes=True)
+        append_audit(session, AuditEvent(
+            event_type="approval.decided", actor_id=str(actor.id),
+        ))
         session.commit()
         return result
     except ApprovalDenied as exc:
@@ -121,6 +128,9 @@ def global_budget(
 ):
     try:
         row = configure_global_budget(session, actor.id, payload.ceiling_minor)
+        append_audit(session, AuditEvent(
+            event_type="budget.global_configured", actor_id=str(actor.id),
+        ))
         session.commit()
         return {"ceiling_minor": row.budget_ceiling_minor}
     except ControlDenied as exc:
@@ -138,6 +148,9 @@ def venture_budget(
         row = configure_venture_budget(
             session, actor.id, venture_id, payload.ceiling_minor
         )
+        append_audit(session, AuditEvent(
+            event_type="budget.venture_configured", actor_id=str(actor.id),
+        ))
         session.commit()
         return {"ceiling_minor": row.budget_ceiling_minor}
     except ControlDenied as exc:
@@ -152,6 +165,9 @@ def global_stop(
 ):
     try:
         set_global_stop(session, actor.id, payload.enabled)
+        append_audit(session, AuditEvent(
+            event_type="control.global_stop_changed", actor_id=str(actor.id),
+        ))
         session.commit()
         return {"enabled": payload.enabled}
     except ControlDenied as exc:
@@ -167,6 +183,9 @@ def venture_freeze(
 ):
     try:
         set_venture_freeze(session, actor.id, venture_id, payload.enabled)
+        append_audit(session, AuditEvent(
+            event_type="control.venture_freeze_changed", actor_id=str(actor.id),
+        ))
         session.commit()
         return {"enabled": payload.enabled}
     except ControlDenied as exc:
@@ -185,6 +204,9 @@ def add_reservation(
             payload.amount_minor, payload.idempotency_key,
         )
         result = {"id": row.id, "amount_minor": row.amount_minor}
+        append_audit(session, AuditEvent(
+            event_type="budget.reserved", actor_id=str(actor.id),
+        ))
         session.commit()
         return result
     except ControlDenied as exc:
