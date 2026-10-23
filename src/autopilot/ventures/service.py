@@ -1,5 +1,6 @@
 import uuid
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
@@ -56,6 +57,9 @@ def create_venture(session: Session, actor: Actor, name: str) -> Venture:
     venture = Venture(organization_id=actor.organization_id, name=name.strip())
     session.add(venture)
     session.flush()
+    append_audit(session, AuditEvent(
+        "venture.created", actor_id=str(actor.id), subject_id=str(venture.id),
+    ))
     return venture
 
 
@@ -84,6 +88,9 @@ def create_task(
     )
     session.add(task)
     session.flush()
+    append_audit(session, AuditEvent(
+        "task.created", actor_id=str(actor.id), subject_id=str(task.id),
+    ))
     return task
 
 
@@ -127,4 +134,8 @@ def transition_task(
         raise Conflict("Concurrent task update")
     session.expire(task)
     session.flush()
+    append_audit(session, AuditEvent(
+        "task.transitioned", actor_id=str(actor.id), subject_id=str(task.id),
+        metadata={"target": target.value},
+    ))
     return task
