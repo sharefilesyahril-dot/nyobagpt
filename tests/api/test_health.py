@@ -1,6 +1,7 @@
+
 from fastapi.testclient import TestClient
 from sqlalchemy import Integer
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from autopilot.app import create_app
 from autopilot.db import Base
@@ -19,20 +20,29 @@ class RollbackProbe(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
 
-def test_database_transaction_rollback(database_engine, db_session) -> None:
-    # Buat tabel via engine, di luar session utama.
-    Base.metadata.create_all(bind=database_engine, tables=[RollbackProbe.__table__])
+def test_database_transaction_rollback(database_engine) -> None:
+    # Siapkan tabel sebelum transaksi pengujian.
+    RollbackProbe.__table__.drop(database_engine, checkfirst=True)
+    RollbackProbe.__table__.create(database_engine)
 
     try:
-        # Tambahkan data dan lakukan flush
-        db_session.add(RollbackProbe(id=100))
-        db_session.flush()
+        # INSERT dilakukan di dalam transaksi yang akan dibatalkan.
+        with database_engine.connect() as connection:
+            transaction = connection.begin()
+            session = Session(bind=connection)
 
-        # Rollback session
-        db_session.rollback()
+            try:
+                session.add(RollbackProbe(id=100))
+                session.flush()
+            finally:
+                session.close()
+                if transaction.is_active:
+                    transaction.rollback()
 
-        # Verifikasi bahwa baris bernilai None setelah rollback
-        assert db_session.get(RollbackProbe, 100) is None
+        # Gunakan koneksi baru untuk memastikan INSERT tidak tersimpan.
+        with Session(database_engine) as verification_session:
+            assert verification_session.get(RollbackProbe, 100) is None
+
     finally:
-        # Bersihkan tabel menggunakan engine terpisah
-        Base.metadata.drop_all(bind=database_engine, tables=[RollbackProbe.__table__])
+        # Hapus tabel setelah seluruh koneksi pengujian ditutup.
+        RollbackProbe.__table__.drop(database_engine, checkfirst=True)
