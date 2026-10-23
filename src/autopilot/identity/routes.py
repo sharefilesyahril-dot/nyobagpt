@@ -50,7 +50,6 @@ def add_agent(
         agent, credential = create_agent(session, actor, payload.kind)
         session.commit()
     except PermissionDenied as exc:
-        session.rollback()
         raise HTTPException(status_code=403, detail="FORBIDDEN") from exc
     return AgentOutput(
         id=agent.id,
