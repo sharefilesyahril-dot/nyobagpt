@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from autopilot.governance.models import ActionRequest
 from autopilot.identity.models import Actor
 from autopilot.ventures.service import get_venture
@@ -133,6 +134,10 @@ def request_action(
                 "Idempotency key reused for different request"
             ) from None
         return existing
+    append_audit(session, AuditEvent(
+        "action.requested", actor_id=str(actor.id), subject_id=str(record.id),
+        metadata={"risk": risk},
+    ))
     return record
 
 
