@@ -39,7 +39,11 @@ def _require_owner(session: Session, owner_id: uuid.UUID) -> Actor:
 def set_grant(session: Session, owner_id: uuid.UUID, grant: GrantInput) -> Grant:
     owner = _require_owner(session, owner_id)
     actor = session.get(Actor, grant.actor_id)
-    if actor is None or not actor.active or actor.organization_id != owner.organization_id:
+    if (
+        actor is None
+        or not actor.active
+        or actor.organization_id != owner.organization_id
+    ):
         raise PermissionDenied("Target actor unavailable")
     if actor.kind == ActorKind.owner:
         raise PermissionDenied("Owner authority cannot be delegated")
