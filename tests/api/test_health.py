@@ -32,7 +32,8 @@ def test_database_transaction_rollback(db_session, database_engine) -> None:
             # Verifikasi data ada di dalam nested transaction
             assert db_session.get(RollbackProbe, 99) is not None
 
-        # Setelah keluar dari context manager begin_nested (atau rollback manual), data harusnya hilang
+        # Setelah keluar dari context manager begin_nested
+        # (atau rollback manual), data harusnya hilang
         db_session.rollback()
         assert db_session.get(RollbackProbe, 99) is None
     finally:
