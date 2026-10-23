@@ -45,3 +45,31 @@ def test_rollback_removes_entry_and_head_change(db_session):
     db_session.expire_all()
     assert db_session.get(AuditHead, 1).sequence == before
     assert verify_audit_chain(db_session).valid
+
+
+def test_concurrent_appends_have_unique_order(database_engine):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from sqlalchemy.orm import Session
+
+    ready = Event()
+
+    def writer(number):
+        assert ready.wait(timeout=15)
+        with Session(database_engine) as session:
+            entry = append_audit(session, AuditEvent(
+                "test.concurrent", metadata={"writer": number},
+            ))
+            sequence = entry.sequence
+            session.commit()
+            return sequence
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(writer, i) for i in range(4)]
+        ready.set()
+        sequences = [future.result(timeout=30) for future in futures]
+    assert len(set(sequences)) == 4
+    assert sorted(sequences) == list(range(min(sequences), max(sequences) + 1))
+    with Session(database_engine) as session:
+        assert verify_audit_chain(session).valid
