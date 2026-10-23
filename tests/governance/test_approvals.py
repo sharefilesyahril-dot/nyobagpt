@@ -118,3 +118,65 @@ def test_grant_revoked_before_consumption(db_session, monkeypatch):
     revoke_grant(db_session, owner.id, action_grant.id)
     with pytest.raises(PermitDenied):
         consume_permit(db_session, permit.id, {"amount": 100}, NOW)
+
+
+def test_concurrent_consumption_has_exactly_one_winner(
+    database_engine, monkeypatch,
+):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from sqlalchemy import delete
+    from sqlalchemy.orm import Session
+
+    from autopilot.governance.models import ActionRequest, Approval, ExecutionPermit
+    from autopilot.identity.models import Actor
+    from autopilot.ventures.models import Venture
+
+    monkeypatch.setenv("AUTOPILOT_BOOTSTRAP_SECRET", "permit-race-secret")
+    with Session(database_engine) as setup:
+        owner, _ = bootstrap_owner(setup, "permit-race-secret")
+        venture = create_venture(setup, owner, "Permit race")
+        request = request_action(
+            setup, owner, venture.id, "payment", "invoice",
+            {"amount": 100}, "permit-race-key",
+        )
+        decide_approval(setup, owner.id, request.id, "approved", NOW)
+        permit = authorize_execution(setup, request.id, NOW)
+        owner_id, venture_id = owner.id, venture.id
+        request_id, permit_id = request.id, permit.id
+        setup.commit()
+
+    barrier = Barrier(2)
+
+    def attempt():
+        with Session(database_engine) as session:
+            barrier.wait(timeout=10)
+            try:
+                consume_permit(session, permit_id, {"amount": 100}, NOW)
+                session.commit()
+                return "success"
+            except PermitDenied:
+                session.rollback()
+                return "denied"
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(attempt)
+            second = pool.submit(attempt)
+            assert sorted((first.result(timeout=20), second.result(timeout=20))) == [
+                "denied", "success",
+            ]
+        with Session(database_engine) as verify:
+            assert verify.get(ExecutionPermit, permit_id).used_at is not None
+    finally:
+        with database_engine.begin() as cleanup:
+            cleanup.execute(delete(ExecutionPermit).where(
+                ExecutionPermit.id == permit_id
+            ))
+            cleanup.execute(delete(Approval).where(Approval.request_id == request_id))
+            cleanup.execute(delete(ActionRequest).where(
+                ActionRequest.id == request_id
+            ))
+            cleanup.execute(delete(Venture).where(Venture.id == venture_id))
+            cleanup.execute(delete(Actor).where(Actor.id == owner_id))
