@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from autopilot.audit.ledger import AuditEvent, append_audit
 from autopilot.db import get_session
 from autopilot.identity.models import Actor, ActorKind
 from autopilot.identity.service import (
@@ -49,9 +48,6 @@ def add_agent(
 ) -> AgentOutput:
     try:
         agent, credential = create_agent(session, actor, payload.kind)
-        append_audit(session, AuditEvent(
-            event_type="identity.agent_created", actor_id=str(actor.id),
-        ))
         session.commit()
     except PermissionDenied as exc:
         raise HTTPException(status_code=403, detail="FORBIDDEN") from exc
