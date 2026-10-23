@@ -49,9 +49,10 @@ def test_canonical_idempotency_and_conflict(db_session, monkeypatch):
         submit({"b": 3})
     with pytest.raises(RequestConflict):
         submit({"b": 2, "a": {"z": 1, "y": 2}}, action="draft")
+    other = create_venture(db_session, owner, "Other")
     with pytest.raises(RequestConflict):
         request_action(
-            db_session, owner, uuid.uuid4(), "payment",
+            db_session, owner, other.id, "payment",
             "target", {"b": 2}, "key-one",
         )
 
