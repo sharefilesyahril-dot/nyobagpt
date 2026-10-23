@@ -2,7 +2,7 @@ import hashlib
 import os
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -57,7 +57,7 @@ def bootstrap_owner(session: Session, supplied_secret: str) -> tuple[Actor, str]
         kind=ActorKind.owner,
         level=4,
         credential_hash=_digest(token),
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     session.add(actor)
     session.flush()
@@ -75,7 +75,7 @@ def create_agent(session: Session, owner: Actor, kind: ActorKind) -> tuple[Actor
         kind=kind,
         level=2 if kind == ActorKind.executive else 1,
         credential_hash=_digest(token),
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     session.add(actor)
     session.flush()
