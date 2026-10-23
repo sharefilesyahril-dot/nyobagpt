@@ -20,7 +20,7 @@ class RollbackProbe(Base):
 
 
 def test_database_transaction_rollback(database_engine, db_session) -> None:
-    # Buat tabel sekali saja menggunakan connection engine secara aman di luar session utama
+    # Buat tabel via engine, di luar session utama.
     Base.metadata.create_all(bind=database_engine, tables=[RollbackProbe.__table__])
 
     try:
