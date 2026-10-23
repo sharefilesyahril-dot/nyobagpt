@@ -4,11 +4,10 @@ import secrets
 import uuid
 from datetime import UTC, datetime
 
-from autopilot.audit.ledger import AuditEvent, append_audit
-
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from autopilot.identity.models import Actor, ActorKind
 
 
