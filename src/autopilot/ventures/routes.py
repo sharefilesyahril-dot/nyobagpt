@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from autopilot.db import get_session
 from autopilot.identity.models import Actor
 from autopilot.identity.routes import current_actor
@@ -69,6 +70,9 @@ def add_venture(
     try:
         venture = create_venture(session, actor, payload.name)
         result = VentureOutput.model_validate(venture, from_attributes=True)
+        append_audit(session, AuditEvent(
+            event_type="venture.created", actor_id=str(actor.id),
+        ))
         session.commit()
         return result
     except (NotFound, ValueError) as exc:
@@ -103,6 +107,9 @@ def add_task(
             session, actor, venture_id, payload.title, payload.acceptance_criteria
         )
         result = TaskOutput.model_validate(task, from_attributes=True)
+        append_audit(session, AuditEvent(
+            event_type="task.created", actor_id=str(actor.id),
+        ))
         session.commit()
         return result
     except (NotFound, Conflict, ValueError) as exc:
@@ -141,6 +148,9 @@ def change_task(
             payload.expected_version, payload.target, payload.approved_action,
         )
         result = TaskOutput.model_validate(task, from_attributes=True)
+        append_audit(session, AuditEvent(
+            event_type="task.transitioned", actor_id=str(actor.id),
+        ))
         session.commit()
         return result
     except (NotFound, Conflict) as exc:
