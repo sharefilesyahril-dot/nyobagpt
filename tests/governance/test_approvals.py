@@ -157,7 +157,7 @@ def test_concurrent_consumption_has_exactly_one_winner(
         )
         decide_approval(setup, owner.id, request.id, "approved", NOW)
         permit = authorize_execution(setup, request.id, NOW)
-        owner_id, venture_id = owner.id, venture.id
+        owner_id, org_id, venture_id = owner.id, owner.organization_id, venture.id
         request_id, permit_id = request.id, permit.id
         setup.commit()
 
@@ -196,7 +196,7 @@ def test_concurrent_consumption_has_exactly_one_winner(
                 VentureControl.venture_id == venture_id
             ))
             cleanup.execute(delete(GlobalControl).where(
-                GlobalControl.organization_id == owner_id
+                GlobalControl.organization_id == org_id
             ))
             cleanup.execute(delete(Venture).where(Venture.id == venture_id))
             cleanup.execute(delete(Actor).where(Actor.id == owner_id))
