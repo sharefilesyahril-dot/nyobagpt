@@ -22,7 +22,7 @@ def test_audit_is_owner_only_and_paginated(db_session, monkeypatch):
         "/audit", headers={"Authorization": f"Bearer {agent_token}"},
     ).status_code == 403
     headers = {"Authorization": f"Bearer {token}"}
-    response = client.get("/audit?offset=0&limit=1", headers=headers)
+    response = client.get("/audit?offset=2&limit=1", headers=headers)
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["metadata"]["token"] == "[REDACTED]"
