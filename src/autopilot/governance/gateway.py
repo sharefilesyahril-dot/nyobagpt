@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -72,6 +73,10 @@ def authorize_execution(
     )
     session.add(record)
     session.flush()
+    append_audit(session, AuditEvent(
+        "permit.issued", actor_id=str(request.actor_id),
+        subject_id=str(record.id),
+    ))
     return record
 
 
@@ -115,3 +120,7 @@ def consume_permit(
     if result.rowcount != 1:
         raise PermitDenied("Permit already consumed")
     session.expire(permit)
+    append_audit(session, AuditEvent(
+        "permit.consumed", actor_id=str(request.actor_id),
+        subject_id=str(permit_id),
+    ))
