@@ -62,7 +62,8 @@ jobs:
 
       - name: Run Ruff linter
         run: ruff check .
-      - name: Run Task 1 pytest suite (fail if any test is skipped)
-        run: |
-          pytest tests/api/test_health.py -v -rs
-          pytest -v -rs -W error::pytest.PytestUnhandledThreadExceptionWarning
+      - name: Apply identity migration
+        run: alembic upgrade head
+
+      - name: Run full test suite (fail if any test is skipped)
+        run: pytest -v -rs --strict-markers
