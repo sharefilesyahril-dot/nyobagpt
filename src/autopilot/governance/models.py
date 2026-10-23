@@ -8,7 +8,9 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -42,3 +44,34 @@ class Grant(Base):
         DateTime(timezone=True), nullable=False
     )
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class ActionRequest(Base):
+    __tablename__ = "action_requests"
+    __table_args__ = (
+        UniqueConstraint(
+            "actor_id", "idempotency_key", name="uq_action_actor_idempotency"
+        ),
+        Index("ix_action_requests_venture", "venture_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    actor_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("actors.id"), nullable=False
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    venture_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ventures.id"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(String(128), nullable=False)
+    target: Mapped[str] = mapped_column(String(256), nullable=False)
+    parameters: Mapped[dict] = mapped_column(JSON, nullable=False)
+    parameters_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    risk: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
