@@ -16,7 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from autopilot.db import Base
 
 
-class ActorKind(str, enum.Enum):
+class ActorKind(enum.StrEnum):
     owner = "owner"
     executive = "executive"
     specialist = "specialist"
@@ -30,10 +30,18 @@ class Actor(Base):
         UniqueConstraint("credential_hash", name="uq_actor_credential_hash"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    kind: Mapped[ActorKind] = mapped_column(Enum(ActorKind, name="actor_kind"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    kind: Mapped[ActorKind] = mapped_column(
+        Enum(ActorKind, name="actor_kind"), nullable=False
+    )
     level: Mapped[int] = mapped_column(nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     credential_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
