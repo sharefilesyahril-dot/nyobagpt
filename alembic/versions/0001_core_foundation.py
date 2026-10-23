@@ -16,7 +16,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    kind = postgresql.ENUM("owner", "executive", "specialist", name="actor_kind")
+    kind = postgresql.ENUM(
+        "owner", "executive", "specialist",
+        name="actor_kind", create_type=False,
+    )
     kind.create(op.get_bind(), checkfirst=True)
     op.create_table(
         "actors",
