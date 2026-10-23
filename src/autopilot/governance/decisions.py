@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, timedelta
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -44,4 +45,8 @@ def decide_approval(
     request.status = decision
     session.add(record)
     session.flush()
+    append_audit(session, AuditEvent(
+        "approval.decided", actor_id=str(owner.id), subject_id=str(record.id),
+        metadata={"decision": decision},
+    ))
     return record
