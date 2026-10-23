@@ -1,6 +1,7 @@
 """Venture registry migration."""
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
 from alembic import op
 
 revision = "0003_venture_registry"
@@ -8,9 +9,19 @@ down_revision = "0002_scoped_grants"
 branch_labels = None
 depends_on = None
 
-stage = postgresql.ENUM("discovery", "evidence_collection", "validation", "selection", "mvp_proposal", "quality_review", "launch_pending", "growth_review", name="venture_stage", create_type=False)
-status = postgresql.ENUM("active", "paused", "stopped", name="venture_status", create_type=False)
-state = postgresql.ENUM("queued", "leased", "running", "awaiting_review", "awaiting_approval", "completed", "failed", "paused", "cancelled", name="task_state", create_type=False)
+stage = postgresql.ENUM(
+    "discovery", "evidence_collection", "validation", "selection",
+    "mvp_proposal", "quality_review", "launch_pending", "growth_review",
+    name="venture_stage", create_type=False,
+)
+status = postgresql.ENUM(
+    "active", "paused", "stopped", name="venture_status", create_type=False,
+)
+state = postgresql.ENUM(
+    "queued", "leased", "running", "awaiting_review", "awaiting_approval",
+    "completed", "failed", "paused", "cancelled",
+    name="task_state", create_type=False,
+)
 
 
 def upgrade() -> None:
@@ -29,13 +40,19 @@ def upgrade() -> None:
     op.create_table(
         "venture_tasks",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("venture_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("ventures.id"), nullable=False),
+        sa.Column(
+            "venture_id", postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("ventures.id"), nullable=False,
+        ),
         sa.Column("title", sa.String(200), nullable=False),
         sa.Column("acceptance_criteria", sa.Text(), nullable=False),
         sa.Column("state", state, nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.CheckConstraint("version >= 1", name="ck_task_version_positive"),
-        sa.CheckConstraint("length(trim(acceptance_criteria)) > 0", name="ck_task_acceptance_nonempty"),
+        sa.CheckConstraint(
+            "length(trim(acceptance_criteria)) > 0",
+            name="ck_task_acceptance_nonempty",
+        ),
     )
     op.create_index("ix_tasks_venture", "venture_tasks", ["venture_id"])
 
