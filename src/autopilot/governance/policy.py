@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from pydantic import BaseModel, Field
+from autopilot.audit.ledger import AuditEvent, append_audit
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -60,6 +62,7 @@ def set_grant(session: Session, owner_id: uuid.UUID, grant: GrantInput) -> Grant
     )
     session.add(record)
     session.flush()
+    append_audit(session, AuditEvent("grant.created", subject_id=str(record.id)))
     return record
 
 
@@ -70,6 +73,7 @@ def revoke_grant(session: Session, owner_id: uuid.UUID, grant_id: uuid.UUID) -> 
         raise PermissionDenied("Grant unavailable")
     record.active = False
     session.flush()
+    append_audit(session, AuditEvent("grant.revoked", subject_id=str(record.id)))
 
 
 def authorize(
