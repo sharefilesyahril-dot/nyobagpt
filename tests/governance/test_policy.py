@@ -15,9 +15,10 @@ def test_scoped_grants_default_deny_expiry_budget_and_revoke(db_session, monkeyp
     venture = uuid.uuid4()
     other = uuid.uuid4()
     now = datetime.now(UTC)
-    check = lambda v, amount, at=now: authorize(
-        db_session, agent.id, v, "draft", "document", amount, at
-    )
+    def check(v, amount, at=now):
+        return authorize(
+            db_session, agent.id, v, "draft", "document", amount, at
+        )
     assert check(venture, 1).reason_code == "NO_MATCHING_GRANT"
     data = GrantInput(
         actor_id=agent.id, venture_id=venture, action="draft", resource="document",
