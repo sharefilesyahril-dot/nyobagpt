@@ -4,7 +4,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from autopilot.identity.models import Actor, ActorKind
@@ -48,7 +48,7 @@ def bootstrap_owner(session: Session, supplied_secret: str) -> tuple[Actor, str]
     if not expected or not secrets.compare_digest(supplied_secret, expected):
         raise PermissionDenied("Invalid bootstrap secret")
     # Serialize competing bootstrap attempts against the PostgreSQL transaction lock.
-    session.execute(select(Actor.id).where(Actor.kind == ActorKind.owner).with_for_update()).all()
+    session.execute(text("SELECT pg_advisory_xact_lock(8675309)"))
     if session.scalar(select(Actor.id).where(Actor.kind == ActorKind.owner)) is not None:
         raise IdentityConflict("Owner already bootstrapped")
     token = secrets.token_urlsafe(32)
