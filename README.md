@@ -27,3 +27,17 @@ uvicorn autopilot.app:app --reload
 ```
 
 `GET /health` returns `{"status":"ok"}`.
+
+## Core Foundation handoff
+
+See [HTTP API and Subsystem B contract](docs/core-foundation-api.md) for
+routes, request/response fields, error codes, fake-action workflow, and
+security limitations. The application records permissions and permits but
+**never executes external actions**. Owner bootstrap uses the protected
+service/CLI flow; no public HTTP bootstrap endpoint exists.
+
+Use a disposable PostgreSQL 16 database for migrations and tests. To verify
+from a clean database, run `alembic upgrade head`, `pytest -q -ra`, and
+`ruff check .`. To test downgrade/upgrade, use another disposable database
+and run `alembic downgrade base` followed by `alembic upgrade head`.
+Do not run these commands against a production or Windows user database.
