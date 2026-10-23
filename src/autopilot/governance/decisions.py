@@ -1,7 +1,7 @@
 """Exact approval decisions; no external action is executed here."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
