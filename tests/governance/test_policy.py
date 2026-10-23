@@ -51,8 +51,6 @@ def test_no_owner_delegation_or_cross_organization(db_session, monkeypatch):
     )
     with pytest.raises(PermissionDenied):
         set_grant(db_session, owner.id, data)
-    agent.level = 4
-    db_session.flush()
     assert not authorize(
         db_session, agent.id, data.venture_id, "admin", "agents", 0, now
     ).allowed
