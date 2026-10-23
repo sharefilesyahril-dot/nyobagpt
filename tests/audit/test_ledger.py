@@ -2,7 +2,7 @@ import json
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import delete, text
+from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
 from autopilot.audit.ledger import (
@@ -10,7 +10,7 @@ from autopilot.audit.ledger import (
     append_audit,
     verify_audit_chain,
 )
-from autopilot.audit.models import AuditEntry, AuditHead
+from autopilot.audit.models import AuditHead
 
 
 def test_linkage_redaction_and_rollback(db_session):
