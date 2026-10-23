@@ -3,11 +3,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from pydantic import BaseModel, Field
-from autopilot.audit.ledger import AuditEvent, append_audit
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from autopilot.governance.models import Grant
 from autopilot.identity.models import Actor, ActorKind
 from autopilot.identity.service import PermissionDenied
