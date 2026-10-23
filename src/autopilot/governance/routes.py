@@ -7,12 +7,11 @@ from sqlalchemy.orm import Session
 
 from autopilot.db import get_session
 from autopilot.governance.approvals import (
-    ApprovalDenied,
     InvalidAction,
     RequestConflict,
-    decide_approval,
     request_action,
 )
+from autopilot.governance.decisions import ApprovalDenied, decide_approval
 from autopilot.identity.models import Actor
 from autopilot.identity.routes import current_actor
 from autopilot.ventures.service import NotFound
