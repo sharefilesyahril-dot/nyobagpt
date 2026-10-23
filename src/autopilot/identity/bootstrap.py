@@ -10,7 +10,9 @@ from autopilot.identity.service import bootstrap_owner
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--secret", required=True, help="Administrative bootstrap secret")
+    parser.add_argument(
+        "--secret", required=True, help="Administrative bootstrap secret"
+    )
     args = parser.parse_args()
     with Session(get_engine(), expire_on_commit=False) as session:
         actor, credential = bootstrap_owner(session, args.secret)
