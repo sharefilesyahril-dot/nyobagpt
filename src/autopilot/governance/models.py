@@ -118,3 +118,58 @@ class ExecutionPermit(Base):
     used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+
+class GlobalControl(Base):
+    __tablename__ = "global_controls"
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True
+    )
+    stopped: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    budget_ceiling_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        CheckConstraint(
+            "budget_ceiling_minor >= 0 AND reserved_minor >= 0 "
+            "AND reserved_minor <= budget_ceiling_minor",
+            name="ck_global_budget_bounds",
+        ),
+    )
+
+
+class VentureControl(Base):
+    __tablename__ = "venture_controls"
+    venture_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ventures.id"), primary_key=True
+    )
+    frozen: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    budget_ceiling_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        CheckConstraint(
+            "budget_ceiling_minor >= 0 AND reserved_minor >= 0 "
+            "AND reserved_minor <= budget_ceiling_minor",
+            name="ck_venture_budget_bounds",
+        ),
+    )
+
+
+class BudgetReservation(Base):
+    __tablename__ = "budget_reservations"
+    __table_args__ = (
+        UniqueConstraint(
+            "actor_id", "idempotency_key", name="uq_budget_actor_key"
+        ),
+        CheckConstraint("amount_minor > 0", name="ck_reservation_positive"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    actor_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("actors.id"), nullable=False
+    )
+    venture_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ventures.id"), nullable=False
+    )
+    amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
