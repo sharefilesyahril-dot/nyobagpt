@@ -53,7 +53,8 @@ def test_owner_only_limits_and_bounded_idempotent_reservations(
     with pytest.raises(ControlDenied):
         configure_venture_budget(db_session, agent.id, first.id, 100000)
     reservation = reserve_budget(db_session, owner.id, first.id, 40, "one")
-    assert reserve_budget(db_session, owner.id, first.id, 40, "one").id == reservation.id
+    repeated = reserve_budget(db_session, owner.id, first.id, 40, "one")
+    assert repeated.id == reservation.id
     with pytest.raises(ControlDenied):
         reserve_budget(db_session, owner.id, first.id, 41, "one")
     with pytest.raises(ControlDenied):
