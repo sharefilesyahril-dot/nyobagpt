@@ -76,3 +76,83 @@ def test_stop_and_freeze_scope(db_session, monkeypatch):
         authorize_execution(db_session, first_request.id, NOW)
     with pytest.raises(ControlDenied):
         reserve_budget(db_session, owner.id, second.id, 1, "stopped")
+
+
+def test_stop_commit_precedes_waiting_permit(database_engine, monkeypatch):
+    """A permit waiting on the stop row must observe the committed stop."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from sqlalchemy import delete, select
+    from sqlalchemy.orm import Session
+
+    from autopilot.governance.models import (
+        ActionRequest,
+        Approval,
+        GlobalControl,
+        VentureControl,
+    )
+    from autopilot.identity.models import Actor
+    from autopilot.ventures.models import Venture
+
+    monkeypatch.setenv("AUTOPILOT_BOOTSTRAP_SECRET", "stop-race-secret")
+    with Session(database_engine) as session:
+        owner, _ = bootstrap_owner(session, "stop-race-secret")
+        venture = create_venture(session, owner, "Stop race")
+        configure_global_budget(session, owner.id, 100)
+        configure_venture_budget(session, owner.id, venture.id, 100)
+        request = approved(session, owner, venture)
+        owner_id = owner.id
+        organization_id = owner.organization_id
+        venture_id = venture.id
+        request_id = request.id
+        session.commit()
+
+    stop_locked = Event()
+    permit_started = Event()
+
+    def stop_first():
+        with Session(database_engine) as session:
+            row = session.scalar(
+                select(GlobalControl).where(
+                    GlobalControl.organization_id == organization_id
+                ).with_for_update()
+            )
+            assert row is not None
+            stop_locked.set()
+            assert permit_started.wait(timeout=15)
+            set_global_stop(session, owner_id, True)
+            session.commit()
+
+    def attempt_permit():
+        assert stop_locked.wait(timeout=15)
+        with Session(database_engine) as session:
+            permit_started.set()
+            try:
+                authorize_execution(session, request_id, NOW)
+            except PermitDenied:
+                session.rollback()
+                return "denied"
+            session.commit()
+            return "issued"
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            stop_future = pool.submit(stop_first)
+            permit_future = pool.submit(attempt_permit)
+            stop_future.result(timeout=25)
+            assert permit_future.result(timeout=25) == "denied"
+    finally:
+        with database_engine.begin() as cleanup:
+            cleanup.execute(delete(Approval).where(Approval.request_id == request_id))
+            cleanup.execute(delete(ActionRequest).where(
+                ActionRequest.id == request_id
+            ))
+            cleanup.execute(delete(VentureControl).where(
+                VentureControl.venture_id == venture_id
+            ))
+            cleanup.execute(delete(GlobalControl).where(
+                GlobalControl.organization_id == organization_id
+            ))
+            cleanup.execute(delete(Venture).where(Venture.id == venture_id))
+            cleanup.execute(delete(Actor).where(Actor.id == owner_id))
