@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -6,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from autopilot.db import get_session
 from autopilot.governance.approvals import (
+    ApprovalDenied,
     InvalidAction,
+    decide_approval,
     RequestConflict,
     request_action,
 )
@@ -52,3 +55,38 @@ def add_action_request(
         raise HTTPException(status_code=409, detail="CONFLICT") from exc
     except InvalidAction as exc:
         raise HTTPException(status_code=422, detail="INVALID_ACTION") from exc
+
+
+class DecisionInput(BaseModel):
+    decision: str
+    expires_at: datetime | None = None
+
+
+class DecisionOutput(BaseModel):
+    id: uuid.UUID
+    request_id: uuid.UUID
+    decision: str
+    expires_at: datetime
+
+
+@router.post(
+    "/action-requests/{request_id}/decision",
+    response_model=DecisionOutput,
+    status_code=201,
+)
+def decide_action_request(
+    request_id: uuid.UUID,
+    payload: DecisionInput,
+    actor: Actor = Depends(current_actor),
+    session: Session = Depends(get_session),
+):
+    try:
+        approval = decide_approval(
+            session, actor.id, request_id, payload.decision,
+            datetime.now(UTC), payload.expires_at,
+        )
+        result = DecisionOutput.model_validate(approval, from_attributes=True)
+        session.commit()
+        return result
+    except ApprovalDenied as exc:
+        raise HTTPException(status_code=403, detail="APPROVAL_DENIED") from exc
