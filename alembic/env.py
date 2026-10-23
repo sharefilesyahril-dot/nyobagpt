@@ -9,6 +9,7 @@ from alembic import context
 from autopilot.db import Base
 from autopilot.governance import models as governance_models  # noqa: F401
 from autopilot.identity import models as identity_models  # noqa: F401
+from autopilot.ventures import models as venture_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
