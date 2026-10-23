@@ -5,8 +5,9 @@ Revises:
 """
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "0001_core_foundation"
 down_revision = None
@@ -31,7 +32,10 @@ def upgrade() -> None:
         sa.UniqueConstraint("credential_hash", name="uq_actor_credential_hash"),
     )
     op.create_index("ix_actors_organization_id", "actors", ["organization_id"])
-    op.execute("CREATE UNIQUE INDEX uq_single_owner ON actors ((kind)) WHERE kind = 'owner'")
+    op.execute(
+        "CREATE UNIQUE INDEX uq_single_owner "
+        "ON actors ((kind)) WHERE kind = 'owner'"
+    )
 
 
 def downgrade() -> None:
