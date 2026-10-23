@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from autopilot.audit.ledger import AuditEvent, append_audit
 from autopilot.governance.models import (
     BudgetReservation,
     GlobalControl,
@@ -50,6 +51,10 @@ def configure_global_budget(
     else:
         row.budget_ceiling_minor = ceiling_minor
     session.flush()
+    append_audit(session, AuditEvent(
+        "budget.global_configured", actor_id=str(owner_id),
+        subject_id=str(owner.organization_id),
+    ))
     return row
 
 
@@ -78,6 +83,10 @@ def configure_venture_budget(
     else:
         row.budget_ceiling_minor = ceiling_minor
     session.flush()
+    append_audit(session, AuditEvent(
+        "budget.venture_configured", actor_id=str(owner_id),
+        subject_id=str(venture_id),
+    ))
     return row
 
 
@@ -92,6 +101,10 @@ def set_global_stop(
         raise ControlDenied("Configure finite global budget first")
     row.stopped = enabled
     session.flush()
+    append_audit(session, AuditEvent(
+        "control.global_stop_changed", actor_id=str(owner_id),
+        subject_id=str(owner.organization_id),
+    ))
 
 
 def set_venture_freeze(
@@ -114,6 +127,10 @@ def set_venture_freeze(
         raise ControlDenied("Configure finite venture budget first")
     row.frozen = enabled
     session.flush()
+    append_audit(session, AuditEvent(
+        "control.venture_freeze_changed", actor_id=str(owner_id),
+        subject_id=str(venture_id),
+    ))
 
 
 def check_controls(
@@ -178,4 +195,8 @@ def reserve_budget(
     )
     session.add(reservation)
     session.flush()
+    append_audit(session, AuditEvent(
+        "budget.reserved", actor_id=str(actor_id),
+        subject_id=str(reservation.id),
+    ))
     return reservation
