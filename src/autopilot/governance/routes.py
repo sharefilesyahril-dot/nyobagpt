@@ -20,12 +20,16 @@ from autopilot.governance.controls import (
     set_venture_freeze,
 )
 from autopilot.governance.decisions import ApprovalDenied, decide_approval
-from autopilot.governance.gateway import PermitDenied, authorize_execution, consume_permit
+from autopilot.governance.gateway import (
+    PermitDenied,
+    authorize_execution,
+    consume_permit,
+)
 from autopilot.governance.models import ActionRequest, ExecutionPermit
 from autopilot.governance.policy import GrantInput, revoke_grant, set_grant
-from autopilot.identity.service import PermissionDenied
 from autopilot.identity.models import Actor, ActorKind
 from autopilot.identity.routes import current_actor
+from autopilot.identity.service import PermissionDenied
 from autopilot.ventures.service import NotFound
 
 router = APIRouter()
