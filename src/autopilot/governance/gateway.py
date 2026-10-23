@@ -7,6 +7,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from autopilot.governance.approvals import _canonical, _hash
+from autopilot.governance.controls import ControlDenied, check_controls
 from autopilot.governance.models import ActionRequest, Approval, ExecutionPermit
 from autopilot.governance.policy import authorize
 from autopilot.identity.models import Actor, ActorKind
@@ -55,6 +56,10 @@ def authorize_execution(
         or approval.request_hash != request.request_hash
     ):
         raise PermitDenied("Approval missing, expired or changed")
+    try:
+        check_controls(session, request.organization_id, request.venture_id)
+    except ControlDenied as exc:
+        raise PermitDenied("Stop or freeze blocks permit") from exc
     _check_current_policy(session, request, now)
     existing = session.scalar(select(ExecutionPermit).where(
         ExecutionPermit.request_id == request_id
@@ -95,6 +100,10 @@ def consume_permit(
         or _hash(_canonical(parameters)) != permit.parameters_sha256
     ):
         raise PermitDenied("Permit parameters or approval invalid")
+    try:
+        check_controls(session, request.organization_id, request.venture_id)
+    except ControlDenied as exc:
+        raise PermitDenied("Stop or freeze blocks consumption") from exc
     _check_current_policy(session, request, now)
     result = session.execute(
         update(ExecutionPermit).where(
