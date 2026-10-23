@@ -4,6 +4,8 @@ import secrets
 import uuid
 from datetime import UTC, datetime
 
+from autopilot.audit.ledger import AuditEvent, append_audit
+
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -64,6 +66,7 @@ def bootstrap_owner(session: Session, supplied_secret: str) -> tuple[Actor, str]
     )
     session.add(actor)
     session.flush()
+    append_audit(session, AuditEvent("identity.owner_bootstrapped", subject_id=str(actor.id)))
     return actor, token
 
 
@@ -82,4 +85,5 @@ def create_agent(session: Session, owner: Actor, kind: ActorKind) -> tuple[Actor
     )
     session.add(actor)
     session.flush()
+    append_audit(session, AuditEvent("identity.agent_created", subject_id=str(actor.id)))
     return actor, token
