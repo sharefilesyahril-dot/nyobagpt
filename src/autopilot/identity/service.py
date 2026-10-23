@@ -2,7 +2,7 @@ import hashlib
 import os
 import secrets
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -49,7 +49,10 @@ def bootstrap_owner(session: Session, supplied_secret: str) -> tuple[Actor, str]
         raise PermissionDenied("Invalid bootstrap secret")
     # Serialize competing bootstrap attempts against the PostgreSQL transaction lock.
     session.execute(text("SELECT pg_advisory_xact_lock(8675309)"))
-    if session.scalar(select(Actor.id).where(Actor.kind == ActorKind.owner)) is not None:
+    existing_owner = session.scalar(
+        select(Actor.id).where(Actor.kind == ActorKind.owner)
+    )
+    if existing_owner is not None:
         raise IdentityConflict("Owner already bootstrapped")
     token = secrets.token_urlsafe(32)
     actor = Actor(
