@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from autopilot.app import create_app
