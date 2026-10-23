@@ -20,17 +20,20 @@ class RollbackProbe(Base):
 
 
 def test_database_transaction_rollback(db_session, database_engine) -> None:
-    # Buat tabel sekali di level engine agar permanen selama test berjalan
+    # Pastikan tabel bersih dari uji sebelumnya
     RollbackProbe.__table__.drop(database_engine, checkfirst=True)
     RollbackProbe.__table__.create(database_engine)
-    
-    try:
-        # Tambahkan data di dalam session, lalu rollback session-nya
-        db_session.add(RollbackProbe(id=1))
-        db_session.flush()
-        db_session.rollback()
 
-        # Pastikan data ter-rollback (bernilai None), sementara tabelnya tetap ada
-        assert db_session.get(RollbackProbe, 1) is None
+    try:
+        # Gunakan savepoint eksplisit untuk menguji rollback session
+        with db_session.begin_nested():
+            db_session.add(RollbackProbe(id=99))
+            db_session.flush()
+            # Verifikasi data ada di dalam nested transaction
+            assert db_session.get(RollbackProbe, 99) is not None
+
+        # Setelah keluar dari context manager begin_nested (atau rollback manual), data harusnya hilang
+        db_session.rollback()
+        assert db_session.get(RollbackProbe, 99) is None
     finally:
         RollbackProbe.__table__.drop(database_engine, checkfirst=True)
