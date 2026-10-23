@@ -6,6 +6,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
+from autopilot.audit import models as audit_models  # noqa: F401
 from autopilot.db import Base
 from autopilot.governance import models as governance_models  # noqa: F401
 from autopilot.identity import models as identity_models  # noqa: F401
