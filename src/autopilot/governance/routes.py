@@ -21,9 +21,10 @@ from autopilot.governance.controls import (
 )
 from autopilot.governance.decisions import ApprovalDenied, decide_approval
 from autopilot.governance.gateway import PermitDenied, authorize_execution, consume_permit
+from autopilot.governance.models import ActionRequest, ExecutionPermit
 from autopilot.governance.policy import GrantInput, revoke_grant, set_grant
 from autopilot.identity.service import PermissionDenied
-from autopilot.identity.models import Actor
+from autopilot.identity.models import Actor, ActorKind
 from autopilot.identity.routes import current_actor
 from autopilot.ventures.service import NotFound
 
@@ -233,8 +234,12 @@ def issue_permit(
     actor: Actor = Depends(current_actor),
     session: Session = Depends(get_session),
 ):
-    if not actor.active:
-        raise HTTPException(status_code=403, detail="FORBIDDEN")
+    request = session.get(ActionRequest, request_id)
+    if (
+        request is None or request.organization_id != actor.organization_id
+        or (request.actor_id != actor.id and actor.kind != ActorKind.owner)
+    ):
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
     try:
         record = authorize_execution(session, request_id, datetime.now(UTC))
         if record.request_id != request_id:
@@ -256,8 +261,13 @@ def use_permit(
     actor: Actor = Depends(current_actor),
     session: Session = Depends(get_session),
 ):
-    if not actor.active:
-        raise HTTPException(status_code=403, detail="FORBIDDEN")
+    permit = session.get(ExecutionPermit, permit_id)
+    request = session.get(ActionRequest, permit.request_id) if permit else None
+    if (
+        request is None or request.organization_id != actor.organization_id
+        or (request.actor_id != actor.id and actor.kind != ActorKind.owner)
+    ):
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
     try:
         consume_permit(session, permit_id, payload.parameters, datetime.now(UTC))
         session.commit()
