@@ -9,8 +9,8 @@ from autopilot.db import get_session
 from autopilot.governance.approvals import (
     ApprovalDenied,
     InvalidAction,
-    decide_approval,
     RequestConflict,
+    decide_approval,
     request_action,
 )
 from autopilot.identity.models import Actor
