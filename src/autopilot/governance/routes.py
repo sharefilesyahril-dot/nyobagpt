@@ -20,6 +20,9 @@ from autopilot.governance.controls import (
     set_venture_freeze,
 )
 from autopilot.governance.decisions import ApprovalDenied, decide_approval
+from autopilot.governance.gateway import PermitDenied, authorize_execution, consume_permit
+from autopilot.governance.policy import GrantInput, revoke_grant, set_grant
+from autopilot.identity.service import PermissionDenied
 from autopilot.identity.models import Actor
 from autopilot.identity.routes import current_actor
 from autopilot.ventures.service import NotFound
@@ -189,3 +192,75 @@ def add_reservation(
         return result
     except ControlDenied as exc:
         raise HTTPException(status_code=403, detail="CONTROL_DENIED") from exc
+
+
+class ConsumeInput(BaseModel):
+    parameters: dict
+
+
+@router.post("/governance/grants", status_code=201)
+def add_grant(
+    payload: GrantInput,
+    actor: Actor = Depends(current_actor),
+    session: Session = Depends(get_session),
+):
+    try:
+        record = set_grant(session, actor.id, payload)
+        result = {"id": record.id, "active": record.active}
+        session.commit()
+        return result
+    except PermissionDenied as exc:
+        raise HTTPException(status_code=403, detail="FORBIDDEN") from exc
+
+
+@router.post("/governance/grants/{grant_id}/revoke")
+def remove_grant(
+    grant_id: uuid.UUID,
+    actor: Actor = Depends(current_actor),
+    session: Session = Depends(get_session),
+):
+    try:
+        revoke_grant(session, actor.id, grant_id)
+        session.commit()
+        return {"active": False}
+    except PermissionDenied as exc:
+        raise HTTPException(status_code=403, detail="FORBIDDEN") from exc
+
+
+@router.post("/action-requests/{request_id}/permit", status_code=201)
+def issue_permit(
+    request_id: uuid.UUID,
+    actor: Actor = Depends(current_actor),
+    session: Session = Depends(get_session),
+):
+    if not actor.active:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+    try:
+        record = authorize_execution(session, request_id, datetime.now(UTC))
+        if record.request_id != request_id:
+            raise PermitDenied("Invalid request")
+        result = {
+            "id": record.id, "request_id": record.request_id,
+            "expires_at": record.expires_at,
+        }
+        session.commit()
+        return result
+    except PermitDenied as exc:
+        raise HTTPException(status_code=403, detail="PERMIT_DENIED") from exc
+
+
+@router.post("/permits/{permit_id}/consume")
+def use_permit(
+    permit_id: uuid.UUID,
+    payload: ConsumeInput,
+    actor: Actor = Depends(current_actor),
+    session: Session = Depends(get_session),
+):
+    if not actor.active:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+    try:
+        consume_permit(session, permit_id, payload.parameters, datetime.now(UTC))
+        session.commit()
+        return {"consumed": True}
+    except (PermitDenied, ValueError, TypeError) as exc:
+        raise HTTPException(status_code=403, detail="PERMIT_DENIED") from exc
