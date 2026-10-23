@@ -19,13 +19,12 @@ class RollbackProbe(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
 
-def test_database_transaction_rollback(db_session, database_engine) -> None:
-    RollbackProbe.metadata.create_all(database_engine)
-    try:
-        db_session.add(RollbackProbe(id=1))
-        db_session.flush()
-        db_session.rollback()
+def test_database_transaction_rollback(db_session) -> None:
+    connection = db_session.connection()
+    RollbackProbe.__table__.create(bind=connection, checkfirst=True)
 
-        assert db_session.get(RollbackProbe, 1) is None
-    finally:
-        RollbackProbe.metadata.drop_all(database_engine)
+    db_session.add(RollbackProbe(id=1))
+    db_session.flush()
+    db_session.rollback()
+
+    assert db_session.get(RollbackProbe, 1) is None
