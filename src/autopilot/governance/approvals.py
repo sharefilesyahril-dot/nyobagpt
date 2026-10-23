@@ -129,6 +129,8 @@ def request_action(
             ActionRequest.idempotency_key == idempotency_key,
         ))
         if existing is None or existing.request_hash != request_hash:
-            raise RequestConflict("Idempotency key reused for different request") from None
+            raise RequestConflict(
+                "Idempotency key reused for different request"
+            ) from None
         return existing
     return record
