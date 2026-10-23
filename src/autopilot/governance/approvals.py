@@ -138,6 +138,6 @@ def request_action(
 
 # Public approval interface lives alongside action-request registration.
 from autopilot.governance.decisions import (  # noqa: E402
-    ApprovalDenied,
-    decide_approval,
+    ApprovalDenied as ApprovalDenied,
+    decide_approval as decide_approval,
 )
