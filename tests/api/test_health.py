@@ -19,12 +19,18 @@ class RollbackProbe(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
 
-def test_database_transaction_rollback(db_session) -> None:
-    connection = db_session.connection()
-    RollbackProbe.__table__.create(bind=connection, checkfirst=True)
+def test_database_transaction_rollback(db_session, database_engine) -> None:
+    # Buat tabel sekali di level engine agar permanen selama test berjalan
+    RollbackProbe.__table__.drop(database_engine, checkfirst=True)
+    RollbackProbe.__table__.create(database_engine)
+    
+    try:
+        # Tambahkan data di dalam session, lalu rollback session-nya
+        db_session.add(RollbackProbe(id=1))
+        db_session.flush()
+        db_session.rollback()
 
-    db_session.add(RollbackProbe(id=1))
-    db_session.flush()
-    db_session.rollback()
-
-    assert db_session.get(RollbackProbe, 1) is None
+        # Pastikan data ter-rollback (bernilai None), sementara tabelnya tetap ada
+        assert db_session.get(RollbackProbe, 1) is None
+    finally:
+        RollbackProbe.__table__.drop(database_engine, checkfirst=True)
