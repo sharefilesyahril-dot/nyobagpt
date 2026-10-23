@@ -1,12 +1,13 @@
 """HTTP-only foundation handoff: no live external effects."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
 from autopilot.app import create_app
 from autopilot.db import get_session
+from autopilot.governance.models import Approval
 from autopilot.identity.service import bootstrap_owner
 
 
@@ -90,6 +91,15 @@ def test_foundation_http_workflow_and_security(db_session, monkeypatch):
         json={"decision": "approved"},
     )
     assert approval.status_code == 201, approval.text
+    approval_row = db_session.get(Approval, UUID(approval.json()["id"]))
+    original_hash = approval_row.request_hash
+    approval_row.request_hash = "f" * 64
+    db_session.flush()
+    assert client.post(
+        f"/action-requests/{request_id}/permit", headers=executive,
+    ).status_code == 403
+    approval_row.request_hash = original_hash
+    db_session.flush()
     permit = client.post(
         f"/action-requests/{request_id}/permit", headers=executive,
     )
